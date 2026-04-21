@@ -63,8 +63,21 @@ jobs:
         shell: bash
         run: |
           set -e
+          # The Node reference interpreter is a subset of the full language.
+          # These examples exercise features only the C++ compiler currently
+          # supports (generics, nested type declarations inside classes, cpp
+          # blocks used as expressions) and are skipped here.
+          skip=("examples/generics.jspp" "examples/game_entity.jspp" "examples/cpp_interop.jspp")
+          is_skipped() {
+            for s in "${skip[@]}"; do [ "$1" = "$s" ] && return 0; done
+            return 1
+          }
           failures=0
           for f in examples/*.jspp; do
+            if is_skipped "$f"; then
+              echo "::notice file=$f::skipped (interpreter-unsupported feature)"
+              continue
+            fi
             echo "::group::$f"
             if ! node prototype/jspp.mjs "$f" --run; then
               echo "::error file=$f::example failed"
