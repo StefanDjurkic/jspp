@@ -182,6 +182,8 @@ The playground also has a **View compiled C++** button that opens a viewer over 
 
 Four JSPP programs round-tripped through the **full** `jspp -> .cpp -> native binary` pipeline. Each folder commits `source.jspp`, `generated.cpp` (what this compiler emitted, verbatim), and `expected.txt` (what the native binary actually printed). ZeroEngine's `jspp-pipeline` CI job builds this compiler from source and re-runs the whole pipeline on every push.
 
+The same `generated.cpp` is **also compiled to WebAssembly** via Emscripten. The playground's modal has a **run wasm** tab that imports the emcc-built `demo.mjs` in your browser, calls `main()`, captures stdout, and live-diffs it against `expected.txt`. Same C++, two backends (g++ native and emcc wasm), identical stdout - verified in CI.
+
 | Demo | What it does |
 |---|---|
 | `hello` | `print("Hello, World!")` - the smallest end-to-end pipeline test. |
