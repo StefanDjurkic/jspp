@@ -71,6 +71,17 @@ cmake --build build
 
 The resulting binary is `build/jspp` (or `build/Debug/jspp.exe` on Windows).
 
+## Start a new project
+
+```bash
+jspp init my-project
+cd my-project
+jspp src/main.jspp -o main.cpp
+c++ -std=c++20 main.cpp -o my-project && ./my-project
+```
+
+`jspp init` scaffolds a ready-to-build project with `src/main.jspp`, a `jspp.toml` manifest, `tests/`, a `.gitignore`, a starter `README.md`, and a GitHub Actions workflow. Pass `--bare` for a minimal layout (just `src/` and `jspp.toml`).
+
 ## Use the compiler
 
 ```bash
