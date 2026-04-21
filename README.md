@@ -190,6 +190,7 @@ The same `generated.cpp` is **also compiled to WebAssembly** via Emscripten. The
 | `fibonacci` | Recursive `fib(n)` for n = 0..9. Exercises functions, recursion, integer codegen. |
 | `classes` | `Player` class with `health`, `name`, and a `takeDamage(amount)` method; two instances, state mutation. |
 | `demo` | Broader mix: variables, arithmetic, control flow, string concat - more of the compiler surface in one program. |
+| `mandelbrot` | A 96x64 Mandelbrot: `main()` prints W*H iteration counts that the playground paints as a fractal - every pixel is computed by C++-to-wasm from this JSPP source. |
 
 ## Editor support
 
