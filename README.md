@@ -1,5 +1,8 @@
 # JSPP (JavaScript++) — JavaScript syntax, C++ performance
 
+[![CI](https://github.com/StefanDjurkic/jspp/actions/workflows/ci.yml/badge.svg)](https://github.com/StefanDjurkic/jspp/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 JSPP is a statically-typed language that reads like modern JavaScript and compiles to high-performance C++. It ships with:
 
 - A **C++ compiler** (lexer → parser → type checker → code generator → `.cpp` output).

@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  compiler:
+    name: Build compiler (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure CMake
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build jspp
+        run: cmake --build build --config Release --target jspp
+
+      - name: Upload jspp binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: jspp-${{ matrix.os }}
+          path: |
+            build/jspp
+            build/Release/jspp.exe
+          if-no-files-found: ignore
+
+  tests:
+    name: Regression tests (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['20', '22']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Run regression test suite
+        run: node tests/run.mjs
+
+  examples:
+    name: Run examples
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Execute every example with the interpreter
+        shell: bash
+        run: |
+          set -e
+          failures=0
+          for f in examples/*.jspp; do
+            echo "::group::$f"
+            if ! node prototype/jspp.mjs "$f" --run; then
+              echo "::error file=$f::example failed"
+              failures=$((failures + 1))
+            fi
+            echo "::endgroup::"
+          done
+          if [ "$failures" -ne 0 ]; then
+            echo "$failures example(s) failed"
+            exit 1
+          fi
