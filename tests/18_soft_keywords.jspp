@@ -1,0 +1,36 @@
+// Soft keywords (type, of, from, as) are valid identifiers in JS and
+// should be accepted as field names, parameter names, member-access
+// names, and identifier expressions. Also: cpp {} blocks should be
+// usable as ordinary statements inside function bodies (no-op in the
+// interpreter).
+
+enum Kind {
+    A,
+    B,
+}
+
+class Entity {
+    name: string;
+    type: Kind;
+
+    constructor(name: string, type: Kind) {
+        this.name = name;
+        this.type = type;
+    }
+
+    function describe(): string {
+        return this.name + ":" + this.type;
+    }
+}
+
+function pick(of: int, from: int): int {
+    // cpp block as a statement (no-op under the interpreter).
+    cpp {
+        // native hot path would go here
+    }
+    return of + from;
+}
+
+let e = new Entity("player", Kind.A);
+print(e.describe());
+print("pick:", pick(3, 4));
