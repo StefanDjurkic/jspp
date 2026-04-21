@@ -152,18 +152,7 @@ JSPP is a fun side project and contributions are very welcome — issues, PRs, b
 
 ## License
 
-JSPP is released under a **permissive license with a visible-attribution requirement** (see [LICENSE](LICENSE)).
-
-You can use, fork, modify, bundle, and ship JSPP in open-source or commercial projects **for free**. In exchange, anything that uses or builds on JSPP must give clearly visible credit to the author in user-facing documentation:
-
-- In the **README** of any public repo that contains JSPP or a derivative work, **and**
-- In a **Credits / About / Acknowledgements** screen of any app, website, or product that ships JSPP or a derivative work.
-
-Example credit line:
-
-> Uses JSPP by Stefan Djurkic — https://github.com/StefanDjurkic/jspp
-
-Credit buried only inside source code, license headers, package manifests, or minified bundles does **not** satisfy this requirement — it has to be visible to a normal end user. Third-party code under `third_party/` keeps its original license.
+MIT — see [LICENSE](LICENSE). Third-party code under `third_party/` keeps its original license.
 # JSPP — JavaScript Syntax, C++ Performance
 
 JSPP is a compiled language that uses JavaScript-like syntax but produces high-performance C++ code. Write in JS, run at C++ speed.
