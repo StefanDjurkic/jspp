@@ -64,10 +64,9 @@ jobs:
         run: |
           set -e
           # The Node reference interpreter is a subset of the full language.
-          # These examples exercise features only the C++ compiler currently
-          # supports (generics, nested type declarations inside classes, cpp
-          # blocks used as expressions) and are skipped here.
-          skip=("examples/generics.jspp" "examples/game_entity.jspp" "examples/cpp_interop.jspp")
+          # examples/generics.jspp still exercises features only the C++
+          # compiler supports and is skipped here.
+          skip=("examples/generics.jspp")
           is_skipped() {
             for s in "${skip[@]}"; do [ "$1" = "$s" ] && return 0; done
             return 1

@@ -339,6 +339,7 @@ class Parser {
     if (t.type === TokenType.KW_THROW)     return this.parseThrow();
     if (t.type === TokenType.KW_BREAK)     { this.advance(); this.expect(TokenType.DL_SEMICOLON); return { type: "BreakStmt" }; }
     if (t.type === TokenType.KW_CONTINUE)  { this.advance(); this.expect(TokenType.DL_SEMICOLON); return { type: "ContinueStmt" }; }
+    if (t.type === TokenType.KW_CPP)       return this.parseCppBlock();
     if (t.type === TokenType.DL_LBRACE)    return this.parseBlock();
     if (t.type === TokenType.KW_FUNCTION)  return this.parseFunctionDecl();
     // Expression statement
@@ -397,7 +398,17 @@ class Parser {
     const params = [];
     while (!this.check(TokenType.DL_RPAREN) && !this.atEnd()) {
       const isRef = this.match(TokenType.KW_REF);
-      const name = this.expect(TokenType.IDENTIFIER, "Expected parameter name").value;
+      // Accept identifier or soft keywords as a parameter name.
+      const t = this.cur();
+      const isSoftKw =
+        t.type === TokenType.KW_TYPE ||
+        t.type === TokenType.KW_OF ||
+        t.type === TokenType.KW_FROM ||
+        t.type === TokenType.KW_AS;
+      if (t.type !== TokenType.IDENTIFIER && !isSoftKw) {
+        this.error("Expected parameter name");
+      }
+      const name = this.advance().value;
       let typeAnnotation = null;
       if (this.match(TokenType.OP_COLON)) typeAnnotation = this.parseTypeExpr();
       let defaultValue = null;
@@ -599,7 +610,15 @@ class Parser {
         ctor = { params, body };
       } else if (this.check(TokenType.KW_FUNCTION)) {
         methods.push(this.parseFunctionDecl());
-      } else if (this.check(TokenType.IDENTIFIER) || this.cur().type.startsWith("TYPE_")) {
+      } else if (
+        this.check(TokenType.IDENTIFIER) ||
+        this.cur().type.startsWith("TYPE_") ||
+        // Allow soft keywords as field names (JS has no such restriction).
+        this.check(TokenType.KW_TYPE) ||
+        this.check(TokenType.KW_OF) ||
+        this.check(TokenType.KW_FROM) ||
+        this.check(TokenType.KW_AS)
+      ) {
         // Field: name: type [= expr];
         const fname = this.advance().value;
         let ftype = null;
@@ -836,7 +855,18 @@ class Parser {
         continue;
       }
       if (this.match(TokenType.OP_DOT)) {
-        const member = this.expect(TokenType.IDENTIFIER, "Expected member name").value;
+        // Accept identifier or soft keywords as a member name (JS has no
+        // restriction: `foo.type`, `foo.of`, `foo.from`, `foo.as` are all fine).
+        const mt = this.cur();
+        const isSoftKw =
+          mt.type === TokenType.KW_TYPE ||
+          mt.type === TokenType.KW_OF ||
+          mt.type === TokenType.KW_FROM ||
+          mt.type === TokenType.KW_AS;
+        if (mt.type !== TokenType.IDENTIFIER && !isSoftKw) {
+          this.error("Expected member name");
+        }
+        const member = this.advance().value;
         expr = { type: "MemberExpr", object: expr, member };
         continue;
       }
@@ -888,6 +918,16 @@ class Parser {
     }
     // Identifier
     if (t.type === TokenType.IDENTIFIER) { this.advance(); return { type: "Identifier", name: t.value }; }
+    // Soft keywords usable as identifiers in expressions (matches JS behavior).
+    if (
+      t.type === TokenType.KW_TYPE ||
+      t.type === TokenType.KW_OF ||
+      t.type === TokenType.KW_FROM ||
+      t.type === TokenType.KW_AS
+    ) {
+      this.advance();
+      return { type: "Identifier", name: t.value };
+    }
     // Parenthesized or arrow
     if (t.type === TokenType.DL_LPAREN) {
       // Try arrow function: (...) =>
