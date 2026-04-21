@@ -1,4 +1,4 @@
-# JSPP — JavaScript syntax, C++ performance
+# JSPP (JavaScript++) — JavaScript syntax, C++ performance
 
 JSPP is a statically-typed language that reads like modern JavaScript and compiles to high-performance C++. It ships with:
 
