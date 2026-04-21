@@ -1,0 +1,5 @@
+// Date tests
+print("parse:", Date.parse("1970-01-01T00:00:00Z"));
+let d = new Date("1970-01-01T00:00:00Z");
+print("getTime:", d.getTime());
+print("iso:", d.toISOString());

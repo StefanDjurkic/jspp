@@ -1,0 +1,5 @@
+Hello, World!
+empty '': true
+empty 'hi': false
+repeat: abababab
+score: 42

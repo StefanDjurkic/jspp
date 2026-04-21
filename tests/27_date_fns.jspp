@@ -1,0 +1,16 @@
+print("format:");
+let d = dateFns.parseISO("2020-01-02T03:04:05Z");
+print(dateFns.format(d, "yyyy-MM-dd HH:mm:ss"));
+print("addDays:");
+print(dateFns.format(dateFns.addDays(d, 3), "yyyy-MM-dd"));
+print("diff:");
+print(dateFns.differenceInDays(dateFns.parseISO("2020-01-05T00:00:00Z"), dateFns.parseISO("2020-01-02T00:00:00Z")));
+print("startOfDay:");
+print(dateFns.format(dateFns.startOfDay(d), "yyyy-MM-dd HH:mm:ss"));
+print("endOfDay:");
+print(dateFns.format(dateFns.endOfDay(d), "yyyy-MM-dd HH:mm:ss"));
+print("sameDay:");
+print(dateFns.isSameDay(d, dateFns.parseISO("2020-01-02T23:59:59Z")));
+print("before/after:");
+print(dateFns.isBefore(dateFns.parseISO("2020-01-01T00:00:00Z"), dateFns.parseISO("2020-01-02T00:00:00Z")));
+print(dateFns.isAfter(dateFns.parseISO("2020-01-03T00:00:00Z"), dateFns.parseISO("2020-01-02T00:00:00Z")));

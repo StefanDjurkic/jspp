@@ -1,0 +1,4 @@
+// RegExp tests
+let r = new RegExp("a", "g");
+print("test:", r.test("cat"));
+print("test2:", new RegExp("a").test("dog"));

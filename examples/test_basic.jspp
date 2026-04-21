@@ -1,0 +1,88 @@
+// test_basic.jspp — Comprehensive test of JSPP's JS-compatible features
+// This file can be pasted almost verbatim as JavaScript and will compile via JSPP.
+
+// --- Basic values ---
+let x = 5;
+let y = 7;
+let z = x * y;   // expect 35
+
+print("z:", z);
+
+
+// --- Functions ---
+function add(a, b) {
+    return a + b;
+}
+
+print("add(10, 20):", add(10, 20)); // expect 30
+
+
+// --- Closures ---
+function makeCounter(start) {
+    let n = start;
+    return function() {
+        n = n + 1;
+        return n;
+    };
+}
+
+let counter = makeCounter(3);
+print("counter():", counter()); // expect 4
+print("counter():", counter()); // expect 5
+
+
+// --- Arrays ---
+let arr = [1, 2, 3, 4];
+let arrSum = 0;
+
+for (let i = 0; i < arr.length; i = i + 1) {
+    arrSum = arrSum + arr[i];
+}
+
+print("arrSum:", arrSum); // expect 10
+
+
+// --- Objects ---
+let player = {
+    name: "Enzo",
+    hp: 10,
+    damage: 3
+};
+
+print("player.hp:", player.hp); // expect 10
+player.hp = player.hp - player.damage;
+print("player.hp after hit:", player.hp); // expect 7
+
+
+// --- Higher-order functions ---
+function map(array, fn) {
+    let out = [];
+    for (let i = 0; i < array.length; i = i + 1) {
+        out[i] = fn(array[i]);
+    }
+    return out;
+}
+
+let doubled = map([2, 4, 6], function(n) { return n * 2; });
+
+print("doubled[1]:", doubled[1]); // expect 8
+
+
+// --- Recursion ---
+function factorial(n) {
+    if (n <= 1) return 1;
+    return n * factorial(n - 1);
+}
+
+print("factorial(5):", factorial(5)); // expect 120
+
+
+// --- Conditionals ---
+function grade(score) {
+    if (score >= 90) return "A";
+    if (score >= 80) return "B";
+    if (score >= 70) return "C";
+    return "D";
+}
+
+print("grade(86):", grade(86)); // expect "B"

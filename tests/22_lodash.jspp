@@ -1,0 +1,22 @@
+print("cloneDeep:");
+let a = { x: 1, y: [2,3] };
+let b = _.cloneDeep(a);
+b.y[0] = 9;
+print("a.y[0]:", a.y[0]);
+print("b.y[0]:", b.y[0]);
+
+print("isEqual:");
+print(_.isEqual({a:1,b:[2]}, {b:[2],a:1}));
+
+print("merge:");
+let t = {a:1, nested: {x:1}};
+_.merge(t, {b:2, nested: {y:2}});
+print(t.a, t.b, t.nested.x, t.nested.y);
+
+print("debounce:");
+let counter = 0;
+let inc = () => { counter = counter + 1; };
+let d = _.debounce(inc, 20);
+d();
+d();
+setTimeout(() => print("counter:", counter), 80);

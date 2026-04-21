@@ -1,0 +1,9 @@
+z: 35
+add: 13
+sub: 7
+mul: 30
+div: 3.3333333333333335
+mod: 1
+neg: -42
+str: hello
+bool: true

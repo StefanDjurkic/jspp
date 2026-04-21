@@ -1,0 +1,7 @@
+parse 2d: 172800000
+parse 1.5h: 5400000
+parse number: 1000
+format short: 1.5h
+format long: 1.5 hours
+format 1s: 1s
+format 500ms: 500ms

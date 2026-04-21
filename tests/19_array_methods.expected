@@ -1,0 +1,20 @@
+map: 6,2,8,2,10,18
+filter: 4,5,9
+reduce: 23
+find: 5
+findIndex: 4
+every>0: true
+some>8: true
+forEach: 6
+slice: 1,4
+indexOf: 1
+lastIndexOf: 3
+includes: true
+join: 3-1-4-1-5-9
+concat: 1,2,3,4
+reverse: 3,2,1
+sort: 1,2,5,8,9
+flat: 1,2,3,4
+shift: 1 2,3
+unshift: 0,2,3
+keys: 0,1,2

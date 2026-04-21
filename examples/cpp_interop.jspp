@@ -1,0 +1,67 @@
+// C++ Interop example — mixing JSPP with raw C++
+
+cpp_include "<algorithm>";
+cpp_include "<numeric>";
+
+type Matrix = {
+    rows: int;
+    cols: int;
+    data: double[];
+
+    function get(r: int, c: int): double {
+        return this.data[r * this.cols + c];
+    }
+
+    function set(r: int, c: int, val: double): void {
+        this.data[r * this.cols + c] = val;
+    }
+};
+
+function createMatrix(rows: int, cols: int): Matrix {
+    let data: double[] = [];
+    // Drop into raw C++ for performance-critical initialization
+    cpp {
+        data.resize(rows * cols, 0.0);
+    }
+    return { rows: rows, cols: cols, data: data };
+}
+
+function matMul(a: Matrix, b: Matrix): Matrix {
+    let result = createMatrix(a.rows, b.cols);
+
+    // Raw C++ for tight inner loop
+    cpp {
+        for (int i = 0; i < a.rows; ++i) {
+            for (int j = 0; j < b.cols; ++j) {
+                double sum = 0.0;
+                for (int k = 0; k < a.cols; ++k) {
+                    sum += a.data[i * a.cols + k] * b.data[k * b.cols + j];
+                }
+                result.data[i * result.cols + j] = sum;
+            }
+        }
+    }
+
+    return result;
+}
+
+function sumArray(arr: double[]): double {
+    // Use C++ STL directly
+    cpp {
+        return std::accumulate(arr.begin(), arr.end(), 0.0);
+    }
+}
+
+function main(): int {
+    let m = createMatrix(3, 3);
+    m.set(0, 0, 1.0);
+    m.set(1, 1, 1.0);
+    m.set(2, 2, 1.0);
+
+    console.log("Identity matrix [1,1]:", m.get(1, 1));
+
+    let values: double[] = [1.0, 2.0, 3.0, 4.0, 5.0];
+    console.log("Sum:", sumArray(values));
+
+    return 0;
+}

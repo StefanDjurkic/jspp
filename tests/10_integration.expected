@@ -1,0 +1,10 @@
+z: 35
+add(10, 20): 30
+counter(): 4
+counter(): 5
+arrSum: 10
+player.hp: 10
+player.hp after hit: 7
+doubled[1]: 8
+factorial(5): 120
+grade(86): B

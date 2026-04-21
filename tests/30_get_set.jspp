@@ -1,0 +1,6 @@
+print("get simple:", _.get({a:{b:2}}, "a.b"));
+print("get default:", _.get({a:1}, "b", 5));
+let o = {};
+_.set(o, "x.y[0].z", 42);
+print("set:", _.get(o, "x.y[0].z"));
+print("obj:", JSON.stringify(o));

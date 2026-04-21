@@ -1,0 +1,25 @@
+// Arrays — literals, indexing, length, mutation
+let nums = [10, 20, 30, 40, 50];
+print("len:", nums.length);
+print("first:", nums[0]);
+print("last:", nums[4]);
+
+// Sum via loop
+let total = 0;
+for (let i = 0; i < nums.length; i = i + 1) {
+    total = total + nums[i];
+}
+print("total:", total);
+
+// Index assignment (dynamic resize)
+let arr = [1, 2, 3];
+arr[5] = 99;
+print("arr[5]:", arr[5]);
+print("arr len:", arr.length);
+
+// Empty array + push
+let items = [];
+items[0] = "a";
+items[1] = "b";
+items[2] = "c";
+print("items:", items[0], items[1], items[2]);

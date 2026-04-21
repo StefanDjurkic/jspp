@@ -1,0 +1,7 @@
+print("join:", path.join("foo","bar","baz.txt"));
+print("basename:", path.basename("/foo/bar/baz.txt"));
+print("dirname:", path.dirname("/foo/bar/baz.txt"));
+print("extname:", path.extname("/foo/bar/baz.txt"));
+print("isAbs1:", path.isAbsolute("/foo"));
+print("isAbs2:", path.isAbsolute("C:\\Windows\\System32"));
+print("normalize:", path.normalize("a//b/./c/../d"));

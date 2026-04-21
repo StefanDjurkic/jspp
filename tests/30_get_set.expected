@@ -1,0 +1,4 @@
+get simple: 2
+get default: 5
+set: 42
+obj: {"x":{"y":[{"z":42}]}}

@@ -1,0 +1,30 @@
+// Try/catch and throw
+function safeDivide(a, b) {
+    if (b === 0) throw "Division by zero";
+    return a / b;
+}
+
+print("10/2:", safeDivide(10, 2));
+
+try {
+    let result = safeDivide(5, 0);
+    print("should not reach here");
+} catch (e) {
+    print("caught:", e);
+}
+
+print("after try/catch");
+
+// Nested try
+try {
+    try {
+        throw "inner error";
+    } catch (e) {
+        print("inner catch:", e);
+    }
+    print("between");
+} catch (e) {
+    print("outer catch:", e);
+}
+
+print("done");

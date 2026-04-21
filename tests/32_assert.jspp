@@ -1,0 +1,4 @@
+print("assert pass:");
+assert(true, "ok");
+print("ok1");
+try { assert(false, "boom"); } catch (e) { print("caught:", e.message); }

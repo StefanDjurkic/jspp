@@ -1,0 +1,15 @@
+format:
+2020-01-02 03:04:05
+addDays:
+2020-01-05
+diff:
+3
+startOfDay:
+2020-01-02 00:00:00
+endOfDay:
+2020-01-02 23:59:59
+sameDay:
+true
+before/after:
+true
+true

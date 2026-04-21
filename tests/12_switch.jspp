@@ -1,0 +1,45 @@
+// Switch/case
+function dayName(n) {
+    switch (n) {
+        case 1:
+            return "Monday";
+        case 2:
+            return "Tuesday";
+        case 3:
+            return "Wednesday";
+        case 4:
+            return "Thursday";
+        case 5:
+            return "Friday";
+        default:
+            return "Weekend";
+    }
+}
+
+print(dayName(1));
+print(dayName(3));
+print(dayName(5));
+print(dayName(7));
+
+// Switch with break (no fall-through)
+function classify(x) {
+    let result = "";
+    switch (x) {
+        case 1:
+            result = "one";
+            break;
+        case 2:
+            result = "two";
+            break;
+        case 3:
+            result = "three";
+            break;
+        default:
+            result = "other";
+            break;
+    }
+    return result;
+}
+
+print(classify(2));
+print(classify(99));

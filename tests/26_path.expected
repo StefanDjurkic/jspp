@@ -1,0 +1,7 @@
+join: foo/bar/baz.txt
+basename: baz.txt
+dirname: /foo/bar
+extname: .txt
+isAbs1: true
+isAbs2: true
+normalize: a/b/d

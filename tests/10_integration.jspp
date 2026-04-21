@@ -1,0 +1,62 @@
+// Full integration — the original test_basic test
+let x = 5;
+let y = 7;
+let z = x * y;
+print("z:", z);
+
+function add(a, b) {
+    return a + b;
+}
+print("add(10, 20):", add(10, 20));
+
+function makeCounter(start) {
+    let n = start;
+    return function() {
+        n = n + 1;
+        return n;
+    };
+}
+
+let counter = makeCounter(3);
+print("counter():", counter());
+print("counter():", counter());
+
+let arr = [1, 2, 3, 4];
+let arrSum = 0;
+for (let i = 0; i < arr.length; i = i + 1) {
+    arrSum = arrSum + arr[i];
+}
+print("arrSum:", arrSum);
+
+let player = {
+    name: "Enzo",
+    hp: 10,
+    damage: 3
+};
+print("player.hp:", player.hp);
+player.hp = player.hp - player.damage;
+print("player.hp after hit:", player.hp);
+
+function map(array, fn) {
+    let out = [];
+    for (let i = 0; i < array.length; i = i + 1) {
+        out[i] = fn(array[i]);
+    }
+    return out;
+}
+let doubled = map([2, 4, 6], function(n) { return n * 2; });
+print("doubled[1]:", doubled[1]);
+
+function factorial(n) {
+    if (n <= 1) return 1;
+    return n * factorial(n - 1);
+}
+print("factorial(5):", factorial(5));
+
+function grade(score) {
+    if (score >= 90) return "A";
+    if (score >= 80) return "B";
+    if (score >= 70) return "C";
+    return "D";
+}
+print("grade(86):", grade(86));

@@ -1,0 +1,15 @@
+// Math object tests
+print("abs:", Math.abs(-42));
+print("floor:", Math.floor(3.7));
+print("ceil:", Math.ceil(3.2));
+print("round:", Math.round(3.5));
+print("sqrt:", Math.sqrt(144));
+print("pow:", Math.pow(2, 10));
+print("min:", Math.min(5, 3, 8, 1));
+print("max:", Math.max(5, 3, 8, 1));
+print("PI:", Math.PI > 3.14);
+print("sign:", Math.sign(-5), Math.sign(0), Math.sign(5));
+print("trunc:", Math.trunc(4.9));
+print("clamp:", Math.clamp(15, 0, 10));
+print("log:", Math.log(1));
+print("sin:", Math.round(Math.sin(0)));

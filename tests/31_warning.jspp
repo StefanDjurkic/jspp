@@ -1,0 +1,3 @@
+print("warn test:");
+warning(false, "be careful");
+print("done");

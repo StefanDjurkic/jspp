@@ -1,0 +1,70 @@
+# ---- Build artifacts ----
+build/
+out/
+dist/
+target/
+*.obj
+*.exe
+*.dll
+*.lib
+*.pdb
+*.ilk
+*.exp
+
+# ---- Node / JS ----
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# ---- Rust ----
+**/target/
+**/*.rs.bk
+Cargo.lock.bak
+
+# ---- WASM / pkg outputs ----
+pkg/
+**/pkg/
+*.wasm
+
+# ---- CMake generated ----
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+compile_commands.json
+*.cbp
+
+# ---- IDE / Editor ----
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ---- Temp / logs ----
+*.log
+.tmp-*/
+tmp/
+temp/
+*.tmp
+
+# ---- Playwright / test output ----
+test-results/
+playwright-report/
+playwright/.cache/
+
+# ---- Env / secrets ----
+.env
+.env.*
+!.env.example
+
+# ---- Misc local ----
+*.local
+
+ZeroEngine/
+ZeroEngine

@@ -1,0 +1,22 @@
+// Variables and basic arithmetic
+let x = 5;
+let y = 7;
+let z = x * y;
+print("z:", z);
+
+let a = 10;
+let b = 3;
+print("add:", a + b);
+print("sub:", a - b);
+print("mul:", a * b);
+print("div:", a / b);
+print("mod:", a % b);
+
+let neg = -42;
+print("neg:", neg);
+
+let s = "hello";
+print("str:", s);
+
+let flag = true;
+print("bool:", flag);

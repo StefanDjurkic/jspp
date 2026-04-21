@@ -1,0 +1,22 @@
+// Objects — literal creation, member access, mutation
+let player = {
+    name: "Enzo",
+    hp: 100,
+    damage: 15
+};
+
+print("name:", player.name);
+print("hp:", player.hp);
+
+player.hp = player.hp - player.damage;
+print("hp after hit:", player.hp);
+
+// Nested access
+let config = {
+    width: 1920,
+    height: 1080,
+    title: "Game"
+};
+
+print("res:", config.width, "x", config.height);
+print("title:", config.title);

@@ -1,0 +1,32 @@
+// Closures — capture, mutation of captured vars
+function makeCounter(start) {
+    let n = start;
+    return function() {
+        n = n + 1;
+        return n;
+    };
+}
+
+let c = makeCounter(0);
+print("c1:", c());
+print("c2:", c());
+print("c3:", c());
+
+// Two independent counters
+let a = makeCounter(10);
+let b = makeCounter(100);
+print("a:", a());
+print("b:", b());
+print("a:", a());
+print("b:", b());
+
+// Closure over multiple vars
+function makeAdder(x) {
+    return function(y) {
+        return x + y;
+    };
+}
+
+let add5 = makeAdder(5);
+print("add5(3):", add5(3));
+print("add5(10):", add5(10));

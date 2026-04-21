@@ -1,0 +1,14 @@
+abs: 42
+floor: 3
+ceil: 4
+round: 4
+sqrt: 12
+pow: 1024
+min: 1
+max: 8
+PI: true
+sign: -1 0 1
+trunc: 4
+clamp: 10
+log: 0
+sin: 0

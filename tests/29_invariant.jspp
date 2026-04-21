@@ -1,0 +1,8 @@
+print("invariant pass:");
+invariant(true, "ok");
+print("ok1");
+try {
+  invariant(false, "bad");
+} catch (e) {
+  print("caught:", e.message);
+}

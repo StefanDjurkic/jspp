@@ -1,0 +1,26 @@
+// Functions — typed and untyped params, return values
+function add(a, b) {
+    return a + b;
+}
+
+print("add(2,3):", add(2, 3));
+print("add(10,20):", add(10, 20));
+
+function greet(name: string): string {
+    return "Hello, " + name + "!";
+}
+
+print(greet("Enzo"));
+
+function square(x) {
+    return x * x;
+}
+
+print("square(9):", square(9));
+
+// Default params
+function inc(n, step) {
+    return n + step;
+}
+
+print("inc:", inc(10, 5));

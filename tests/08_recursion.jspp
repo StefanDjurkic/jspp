@@ -1,0 +1,26 @@
+// Recursion — factorial, fibonacci, power
+function factorial(n) {
+    if (n <= 1) return 1;
+    return n * factorial(n - 1);
+}
+
+print("5!:", factorial(5));
+print("10!:", factorial(10));
+
+function fib(n) {
+    if (n <= 1) return n;
+    return fib(n - 1) + fib(n - 2);
+}
+
+print("fib(0):", fib(0));
+print("fib(1):", fib(1));
+print("fib(7):", fib(7));
+print("fib(10):", fib(10));
+
+function power(base, exp) {
+    if (exp === 0) return 1;
+    return base * power(base, exp - 1);
+}
+
+print("2^10:", power(2, 10));
+print("3^5:", power(3, 5));

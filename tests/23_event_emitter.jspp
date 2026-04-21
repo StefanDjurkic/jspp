@@ -1,0 +1,23 @@
+print("on_emit:");
+let e = EventEmitter();
+let total = 0;
+e.on("tick", () => { total = total + 1; });
+e.emit("tick");
+print("total:", total);
+
+print("once:");
+let o = EventEmitter();
+let c = 0;
+o.once("go", () => { c = c + 1; });
+o.emit("go");
+o.emit("go");
+print("c:", c);
+
+print("off:");
+let r = EventEmitter();
+let called = false;
+let h = () => { called = true; };
+r.on("ev", h);
+r.off("ev", h);
+r.emit("ev");
+print("called:", called);

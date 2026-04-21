@@ -1,0 +1,7 @@
+print("parse 2d:", ms.parse("2d"));
+print("parse 1.5h:", ms.parse("1.5h"));
+print("parse number:", ms.parse(1000));
+print("format short:", ms.format(5400000));
+print("format long:", ms.format(5400000, true));
+print("format 1s:", ms.format(1000));
+print("format 500ms:", ms.format(500));

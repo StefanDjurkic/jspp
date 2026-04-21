@@ -1,0 +1,21 @@
+// Enums
+enum Color {
+    Red,
+    Green,
+    Blue
+}
+
+print("Red:", Color.Red);
+print("Green:", Color.Green);
+print("Blue:", Color.Blue);
+
+// Enum with explicit values
+enum HttpStatus {
+    OK = 200,
+    NotFound = 404,
+    ServerError = 500
+}
+
+print("OK:", HttpStatus.OK);
+print("NotFound:", HttpStatus.NotFound);
+print("ServerError:", HttpStatus.ServerError);

@@ -1,0 +1,6 @@
+on_emit:
+total: 1
+once:
+c: 1
+off:
+called: false

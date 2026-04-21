@@ -1,0 +1,30 @@
+// String operations — concatenation, comparison
+let first = "Hello";
+let second = "World";
+let greeting = first + ", " + second + "!";
+print(greeting);
+
+// String in conditions
+function isEmpty(s) {
+    if (s === "") return true;
+    return false;
+}
+
+print("empty '':", isEmpty(""));
+print("empty 'hi':", isEmpty("hi"));
+
+// String building
+function repeat(s, n) {
+    let out = "";
+    for (let i = 0; i < n; i = i + 1) {
+        out = out + s;
+    }
+    return out;
+}
+
+print("repeat:", repeat("ab", 4));
+
+// Mixed string + number
+let label = "score";
+let value = 42;
+print(label + ":", value);

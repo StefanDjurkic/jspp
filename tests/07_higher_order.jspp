@@ -1,0 +1,39 @@
+// Higher-order functions — pass/return functions
+function map(arr, fn) {
+    let out = [];
+    for (let i = 0; i < arr.length; i = i + 1) {
+        out[i] = fn(arr[i]);
+    }
+    return out;
+}
+
+let doubled = map([1, 2, 3, 4], function(n) { return n * 2; });
+print("doubled:", doubled[0], doubled[1], doubled[2], doubled[3]);
+
+// Filter
+function filter(arr, pred) {
+    let out = [];
+    let j = 0;
+    for (let i = 0; i < arr.length; i = i + 1) {
+        if (pred(arr[i])) {
+            out[j] = arr[i];
+            j = j + 1;
+        }
+    }
+    return out;
+}
+
+let evens = filter([1, 2, 3, 4, 5, 6], function(n) { return n % 2 === 0; });
+print("evens:", evens[0], evens[1], evens[2]);
+
+// Reduce
+function reduce(arr, fn, init) {
+    let acc = init;
+    for (let i = 0; i < arr.length; i = i + 1) {
+        acc = fn(acc, arr[i]);
+    }
+    return acc;
+}
+
+let sum = reduce([1, 2, 3, 4, 5], function(a, b) { return a + b; }, 0);
+print("sum:", sum);

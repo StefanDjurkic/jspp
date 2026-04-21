@@ -1,0 +1,40 @@
+// Classes — constructors, methods, fields, inheritance
+class Animal {
+    name: string;
+    sound: string;
+
+    constructor(name, sound) {
+        this.name = name;
+        this.sound = sound;
+    }
+
+    function speak() {
+        return this.name + " says " + this.sound;
+    }
+}
+
+let dog = new Animal("Dog", "Woof");
+print(dog.speak());
+print("name:", dog.name);
+
+let cat = new Animal("Cat", "Meow");
+print(cat.speak());
+
+// Inheritance
+class Pet extends Animal {
+    owner: string;
+
+    constructor(name, sound, owner) {
+        super(name, sound);
+        this.owner = owner;
+    }
+
+    function info() {
+        return this.name + " owned by " + this.owner;
+    }
+}
+
+let myPet = new Pet("Rex", "Bark", "Enzo");
+print(myPet.speak());
+print(myPet.info());
+print("owner:", myPet.owner);

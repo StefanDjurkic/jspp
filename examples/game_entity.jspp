@@ -1,0 +1,148 @@
+// Practical game entity system — Unreal-style simplicity, C++ performance
+
+enum EntityType {
+    Player,
+    Enemy,
+    NPC,
+    Projectile
+}
+
+type Transform = {
+    x: double;
+    y: double;
+    z: double;
+    rotation: double;
+    scale: double;
+};
+
+class GameObject {
+    name: string;
+    type: EntityType;
+    transform: Transform;
+    active: bool = true;
+
+    constructor(name: string, type: EntityType) {
+        this.name = name;
+        this.type = type;
+        this.transform = { x: 0.0, y: 0.0, z: 0.0, rotation: 0.0, scale: 1.0 };
+    }
+
+    function setPosition(x: double, y: double, z: double): void {
+        this.transform.x = x;
+        this.transform.y = y;
+        this.transform.z = z;
+    }
+
+    function distanceTo(other: GameObject): double {
+        let dx = this.transform.x - other.transform.x;
+        let dy = this.transform.y - other.transform.y;
+        let dz = this.transform.z - other.transform.z;
+        return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
+    function destroy(): void {
+        this.active = false;
+        console.log(this.name, "destroyed");
+    }
+}
+
+class Weapon {
+    name: string;
+    damage: int;
+    range: double;
+    cooldown: double;
+    lastFired: double = 0.0;
+
+    constructor(name: string, damage: int, range: double, cooldown: double) {
+        this.name = name;
+        this.damage = damage;
+        this.range = range;
+        this.cooldown = cooldown;
+    }
+
+    function canFire(currentTime: double): bool {
+        return (currentTime - this.lastFired) >= this.cooldown;
+    }
+}
+
+class PlayerCharacter extends GameObject {
+    health: int = 100;
+    maxHealth: int = 100;
+    weapons: Weapon[];
+    currentWeaponIndex: int = 0;
+
+    constructor(name: string) {
+        super(name, EntityType.Player);
+        this.weapons = [];
+    }
+
+    function addWeapon(weapon: Weapon): void {
+        this.weapons.push(weapon);
+        console.log("Picked up:", weapon.name);
+    }
+
+    function switchWeapon(): void {
+        if (this.weapons.length > 0) {
+            this.currentWeaponIndex = (this.currentWeaponIndex + 1) % this.weapons.length;
+            console.log("Switched to:", this.weapons[this.currentWeaponIndex].name);
+        }
+    }
+
+    function takeDamage(amount: int): void {
+        this.health -= amount;
+        if (this.health <= 0) {
+            this.health = 0;
+            this.destroy();
+            console.log("GAME OVER");
+        }
+    }
+
+    function heal(amount: int): void {
+        this.health = Math.min(this.health + amount, this.maxHealth);
+    }
+}
+
+// Game update loop — simple and readable, compiles to fast C++
+function update(ref player: PlayerCharacter, enemies: GameObject[], dt: double): void {
+    // Check for nearby enemies
+    for (let enemy of enemies) {
+        if (!enemy.active) {
+            continue;
+        }
+
+        let dist = player.distanceTo(enemy);
+        if (dist < 2.0) {
+            console.log("WARNING:", enemy.name, "is close! Distance:", dist);
+        }
+    }
+}
+
+function main(): int {
+    let player = PlayerCharacter("Master Chief");
+    player.setPosition(0.0, 0.0, 0.0);
+
+    let rifle = Weapon("Assault Rifle", 15, 50.0, 0.1);
+    let shotgun = Weapon("Shotgun", 40, 15.0, 0.8);
+    player.addWeapon(rifle);
+    player.addWeapon(shotgun);
+
+    let enemies: GameObject[] = [];
+    for (let i = 0; i < 5; i++) {
+        let enemy = GameObject(`Enemy_${i}`, EntityType.Enemy);
+        enemy.setPosition(10.0 + i * 5.0, 0.0, 0.0);
+        enemies.push(enemy);
+    }
+
+    console.log("Player HP:", player.health);
+    console.log("Enemies:", enemies.length);
+
+    player.switchWeapon();
+    player.takeDamage(25);
+    console.log("Player HP after damage:", player.health);
+    player.heal(10);
+    console.log("Player HP after heal:", player.health);
+
+    update(player, enemies, 0.016);
+
+    return 0;
+}

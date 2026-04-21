@@ -1,0 +1,6 @@
+Red: 0
+Green: 1
+Blue: 2
+OK: 200
+NotFound: 404
+ServerError: 500

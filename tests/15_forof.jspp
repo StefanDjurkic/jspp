@@ -1,0 +1,13 @@
+// For-of loops
+let fruits = ["apple", "banana", "cherry"];
+for (let f of fruits) {
+    print("fruit:", f);
+}
+
+// For-of with numbers
+let nums = [10, 20, 30];
+let total = 0;
+for (let n of nums) {
+    total = total + n;
+}
+print("total:", total);

@@ -1,0 +1,25 @@
+// Arrow functions
+let dbl = (x) => x * 2;
+print("double(5):", dbl(5));
+
+let add = (a, b) => a + b;
+print("add(3,4):", add(3, 4));
+
+// Arrow with block body
+let factorial = (n) => {
+    if (n <= 1) return 1;
+    return n * factorial(n - 1);
+};
+print("fact(6):", factorial(6));
+
+// Arrow in higher-order
+function apply(arr, fn) {
+    let out = [];
+    for (let i = 0; i < arr.length; i = i + 1) {
+        out[i] = fn(arr[i]);
+    }
+    return out;
+}
+
+let tripled = apply([1, 2, 3], (x) => x * 3);
+print("tripled:", tripled[0], tripled[1], tripled[2]);
