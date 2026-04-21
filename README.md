@@ -139,6 +139,18 @@ your-workspace/
 
 See the [ZeroEngine repository](https://github.com/StefanDjurkic/zeroengine) for setup instructions.
 
+## Editor support
+
+A VS Code extension is available: **[jspp-vscode](https://github.com/StefanDjurkic/jspp-vscode)** — syntax highlighting, snippets, and language configuration for `.jspp` files, including embedded C++ highlighting inside `cpp { ... }` blocks.
+
+Install the latest release:
+
+```bash
+# Download jspp-<version>.vsix from:
+# https://github.com/StefanDjurkic/jspp-vscode/releases
+code --install-extension jspp-<version>.vsix
+```
+
 ## Documentation
 
 - [Language spec](docs/LANGUAGE_SPEC.md)
