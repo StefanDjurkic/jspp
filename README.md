@@ -155,6 +155,40 @@ your-workspace/
 
 See the [ZeroEngine repository](https://github.com/StefanDjurkic/zeroengine) for setup instructions.
 
+## Demos
+
+Three complementary surfaces demonstrate JSPP:
+
+### 1. Live cube on the landing page — https://stefandjurkic.github.io/zeroengine/
+
+A JSPP script drives a Three.js cube in real time. Rotation, scale, per-face colors, and click behavior are all written in JSPP; the JS reference interpreter (`prototype/jspp.mjs`) executes that source in the browser and calls into Three.js to render.
+
+### 2. Browser playground — https://stefandjurkic.github.io/zeroengine/jspp.html
+
+A real editor with six scene pills, all running through the reference interpreter:
+
+| Scene | What it does |
+|---|---|
+| `hello` | Paints a random composition of rectangles and circles on a 2D canvas. |
+| `loops` | Nested `for` loops tile a hue-shifted grid of circles. |
+| `functions` | Recursive Fibonacci rendered as a bar chart. |
+| `classes` | A `Ball` class with fields and methods, several instances drawn. |
+| `bouncing` | User-defined `tick(t)` animates balls bouncing off canvas walls. |
+| `3D cube` | JSPP `tick(dt)` drives a real Three.js cube via `setRotation` / `setScale` / `setFaceColor`. |
+
+The playground also has a **View compiled C++** button that opens a viewer over the committed compile-pipeline artifacts below.
+
+### 3. Compile-pipeline demos — [`zeroengine/demos/compiled/`](https://github.com/StefanDjurkic/zeroengine/tree/main/demos/compiled)
+
+Four JSPP programs round-tripped through the **full** `jspp -> .cpp -> native binary` pipeline. Each folder commits `source.jspp`, `generated.cpp` (what this compiler emitted, verbatim), and `expected.txt` (what the native binary actually printed). ZeroEngine's `jspp-pipeline` CI job builds this compiler from source and re-runs the whole pipeline on every push.
+
+| Demo | What it does |
+|---|---|
+| `hello` | `print("Hello, World!")` - the smallest end-to-end pipeline test. |
+| `fibonacci` | Recursive `fib(n)` for n = 0..9. Exercises functions, recursion, integer codegen. |
+| `classes` | `Player` class with `health`, `name`, and a `takeDamage(amount)` method; two instances, state mutation. |
+| `demo` | Broader mix: variables, arithmetic, control flow, string concat - more of the compiler surface in one program. |
+
 ## Editor support
 
 A VS Code extension is available: **[jspp-vscode](https://github.com/StefanDjurkic/jspp-vscode)** — syntax highlighting, snippets, and language configuration for `.jspp` files, including embedded C++ highlighting inside `cpp { ... }` blocks.
