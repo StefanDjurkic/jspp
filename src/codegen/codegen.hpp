@@ -4,6 +4,10 @@
 #include "../common/error.hpp"
 #include "cpp_emitter.hpp"
 
+#include <unordered_map>
+#include <vector>
+#include <utility>
+
 namespace jspp {
 
 class CodeGenerator {
@@ -16,6 +20,15 @@ private:
     ErrorReporter& errors_;
     CppEmitter emitter_;
     int anonStructCounter_ = 0;
+
+    // Variable-name -> inferred element struct type for `let xs = []`
+    // followed by `xs.push({...})`. Populated in a pre-pass over the
+    // whole program before emission begins.
+    struct InferredArrayStruct {
+        std::string structName;
+        std::vector<std::pair<std::string, std::string>> fields; // name, cppType
+    };
+    std::unordered_map<std::string, InferredArrayStruct> inferredArrayStructs_;
 
     // Top-level
     void emitStatement(const Statement& stmt);

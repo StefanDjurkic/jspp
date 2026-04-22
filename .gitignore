@@ -68,3 +68,7 @@ playwright/.cache/
 
 ZeroEngine/
 ZeroEngine
+
+# ---- Ad-hoc smoke scratch ----
+tests/_smoke_*
+

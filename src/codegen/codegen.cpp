@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <unordered_map>
+#include <functional>
 
 namespace jspp {
 
@@ -22,22 +23,264 @@ std::string CodeGenerator::generate(const ProgramNode& program) {
     emitter_.addInclude("<iostream>");
     emitter_.addInclude("<string>");
     emitter_.addInclude("<vector>");
+    inferredArrayStructs_.clear();
 
-    // Two-pass: separate declarations from executable statements
+    // ------------------------------------------------------------------
+    // Pre-pass: infer element struct types for `let xs = []` that are
+    // later populated with `xs.push({ ... })` somewhere in the program.
+    // Without this, xs would be emitted as std::vector<int>{} and every
+    // later push of an object would fail to compile.
+    // ------------------------------------------------------------------
+    std::unordered_map<std::string, const VariableDeclStmt*> emptyArrayVars;
+
+    std::function<void(const Statement&)> collectDecls;
+    std::function<void(const Statement&)> collectPushes;
+    std::function<void(const Expression&, const std::function<void(const Expression&)>&)> walkExpr;
+    std::function<void(const Statement&, const std::function<void(const Statement&)>&,
+                       const std::function<void(const Expression&)>&)> walkStmt;
+
+    walkExpr = [&](const Expression& e, const std::function<void(const Expression&)>& fn) {
+        fn(e);
+        switch (e.kind) {
+            case NodeKind::BinaryExpr: {
+                auto& x = static_cast<const BinaryExpr&>(e);
+                if (x.left) walkExpr(*x.left, fn);
+                if (x.right) walkExpr(*x.right, fn);
+                break;
+            }
+            case NodeKind::UnaryExpr: {
+                auto& x = static_cast<const UnaryExpr&>(e);
+                if (x.operand) walkExpr(*x.operand, fn);
+                break;
+            }
+            case NodeKind::CallExpr: {
+                auto& x = static_cast<const CallExpr&>(e);
+                if (x.callee) walkExpr(*x.callee, fn);
+                for (auto& a : x.args) if (a) walkExpr(*a, fn);
+                break;
+            }
+            case NodeKind::MemberExpr: {
+                auto& x = static_cast<const MemberExpr&>(e);
+                if (x.object) walkExpr(*x.object, fn);
+                break;
+            }
+            case NodeKind::IndexExpr: {
+                auto& x = static_cast<const IndexExpr&>(e);
+                if (x.object) walkExpr(*x.object, fn);
+                if (x.index) walkExpr(*x.index, fn);
+                break;
+            }
+            case NodeKind::ArrayLiteral: {
+                auto& x = static_cast<const ArrayLiteralExpr&>(e);
+                for (auto& el : x.elements) if (el) walkExpr(*el, fn);
+                break;
+            }
+            case NodeKind::ObjectLiteral: {
+                auto& x = static_cast<const ObjectLiteralExpr&>(e);
+                for (auto& f : x.fields) if (f.value) walkExpr(*f.value, fn);
+                break;
+            }
+            default: break;
+        }
+    };
+
+    walkStmt = [&](const Statement& s,
+                   const std::function<void(const Statement&)>& sfn,
+                   const std::function<void(const Expression&)>& efn) {
+        sfn(s);
+        auto recur = [&](const Statement& ss) { walkStmt(ss, sfn, efn); };
+        auto recurE = [&](const Expression& ee) { walkExpr(ee, efn); };
+        switch (s.kind) {
+            case NodeKind::BlockStmt: {
+                auto& x = static_cast<const BlockStmt&>(s);
+                for (auto& c : x.statements) if (c) recur(*c);
+                break;
+            }
+            case NodeKind::ExpressionStmt: {
+                auto& x = static_cast<const ExpressionStmt&>(s);
+                if (x.expr) recurE(*x.expr);
+                break;
+            }
+            case NodeKind::VariableDecl: {
+                auto& x = static_cast<const VariableDeclStmt&>(s);
+                if (x.initializer) recurE(*x.initializer);
+                break;
+            }
+            case NodeKind::FunctionDecl: {
+                auto& x = static_cast<const FunctionDeclStmt&>(s);
+                if (x.body) recur(*x.body);
+                break;
+            }
+            case NodeKind::IfStmt: {
+                auto& x = static_cast<const IfStmt_&>(s);
+                if (x.condition) recurE(*x.condition);
+                if (x.thenBlock) recur(*x.thenBlock);
+                for (auto& ei : x.elseIfBlocks) {
+                    if (ei.first) recurE(*ei.first);
+                    if (ei.second) recur(*ei.second);
+                }
+                if (x.elseBlock) recur(*x.elseBlock);
+                break;
+            }
+            case NodeKind::ForStmt: {
+                auto& x = static_cast<const ForStmt_&>(s);
+                if (x.init) recur(*x.init);
+                if (x.condition) recurE(*x.condition);
+                if (x.update) recurE(*x.update);
+                if (x.body) recur(*x.body);
+                break;
+            }
+            case NodeKind::ForOfStmt: {
+                auto& x = static_cast<const ForOfStmt_&>(s);
+                if (x.iterable) recurE(*x.iterable);
+                if (x.body) recur(*x.body);
+                break;
+            }
+            case NodeKind::WhileStmt: {
+                auto& x = static_cast<const WhileStmt_&>(s);
+                if (x.condition) recurE(*x.condition);
+                if (x.body) recur(*x.body);
+                break;
+            }
+            case NodeKind::DoWhileStmt: {
+                auto& x = static_cast<const DoWhileStmt_&>(s);
+                if (x.body) recur(*x.body);
+                if (x.condition) recurE(*x.condition);
+                break;
+            }
+            case NodeKind::ReturnStmt: {
+                auto& x = static_cast<const ReturnStmt_&>(s);
+                if (x.value) recurE(*x.value);
+                break;
+            }
+            case NodeKind::ThrowStmt: {
+                auto& x = static_cast<const ThrowStmt_&>(s);
+                if (x.value) recurE(*x.value);
+                break;
+            }
+            case NodeKind::SwitchStmt: {
+                auto& x = static_cast<const SwitchStmt_&>(s);
+                if (x.discriminant) recurE(*x.discriminant);
+                for (auto& c : x.cases) {
+                    if (c->value) recurE(*c->value);
+                    for (auto& b : c->body) if (b) recur(*b);
+                }
+                if (x.defaultCase) {
+                    for (auto& b : x.defaultCase->body) if (b) recur(*b);
+                }
+                break;
+            }
+            case NodeKind::TryStmt: {
+                auto& x = static_cast<const TryStmt_&>(s);
+                if (x.tryBlock) recur(*x.tryBlock);
+                if (x.catchClause && x.catchClause->body) recur(*x.catchClause->body);
+                break;
+            }
+            case NodeKind::ExportDecl: {
+                auto& x = static_cast<const ExportDeclStmt&>(s);
+                if (x.declaration) recur(*x.declaration);
+                break;
+            }
+            default: break;
+        }
+    };
+
+    // Pass 1: record every `let v = []` (empty array literal, no annotation).
+    auto collectEmpty = [&](const Statement& s) {
+        if (s.kind != NodeKind::VariableDecl) return;
+        auto& v = static_cast<const VariableDeclStmt&>(s);
+        if (v.typeAnnotation) return;
+        if (!v.initializer || v.initializer->kind != NodeKind::ArrayLiteral) return;
+        auto& arr = static_cast<const ArrayLiteralExpr&>(*v.initializer);
+        if (!arr.elements.empty()) return;
+        emptyArrayVars[v.name] = &v;
+    };
+
+    // Pass 2: find `name.push({...})` on any empty-array var. First hit wins.
+    auto inferCppFieldType = [&](const Expression& fv) -> std::string {
+        switch (fv.kind) {
+            case NodeKind::IntLiteral:    return "int";
+            case NodeKind::FloatLiteral:  return "double";
+            case NodeKind::StringLiteral: emitter_.addInclude("<string>"); return "std::string";
+            case NodeKind::BoolLiteral:   return "bool";
+            case NodeKind::CallExpr: {
+                auto& c = static_cast<const CallExpr&>(fv);
+                if (c.callee && c.callee->kind == NodeKind::Identifier) {
+                    auto& id = static_cast<const IdentifierExpr&>(*c.callee).name;
+                    if (id == "randInt") return "int";
+                    if (id == "rand") return "double";
+                }
+                return "double";
+            }
+            default: return "double";  // safest numeric default for computed exprs
+        }
+    };
+
+    auto collectPushExprs = [&](const Expression& e) {
+        if (e.kind != NodeKind::CallExpr) return;
+        auto& c = static_cast<const CallExpr&>(e);
+        if (!c.callee || c.callee->kind != NodeKind::MemberExpr) return;
+        auto& me = static_cast<const MemberExpr&>(*c.callee);
+        if (me.member != "push") return;
+        if (!me.object || me.object->kind != NodeKind::Identifier) return;
+        auto& id = static_cast<const IdentifierExpr&>(*me.object);
+        auto it = emptyArrayVars.find(id.name);
+        if (it == emptyArrayVars.end()) return;
+        if (inferredArrayStructs_.count(id.name)) return;  // already inferred
+        if (c.args.empty() || !c.args[0]) return;
+        if (c.args[0]->kind != NodeKind::ObjectLiteral) return;
+        auto& obj = static_cast<const ObjectLiteralExpr&>(*c.args[0]);
+
+        InferredArrayStruct info;
+        info.structName = generateAnonStructName();
+        std::string def = "struct " + info.structName + " {\n";
+        for (auto& f : obj.fields) {
+            std::string t = inferCppFieldType(*f.value);
+            info.fields.push_back({f.name, t});
+            def += "    " + t + " " + f.name + ";\n";
+        }
+        def += "};\n";
+        emitter_.addPrelude(def);
+        inferredArrayStructs_[id.name] = std::move(info);
+    };
+
+    auto noopS = std::function<void(const Statement&)>([&](const Statement& s){ collectEmpty(s); });
+    auto noopE1 = std::function<void(const Expression&)>([&](const Expression&){});
+    for (auto& stmt : program.statements) {
+        if (stmt) walkStmt(*stmt, noopS, noopE1);
+    }
+    auto noopS2 = std::function<void(const Statement&)>([&](const Statement&){});
+    auto pushFn = std::function<void(const Expression&)>([&](const Expression& e){ collectPushExprs(e); });
+    for (auto& stmt : program.statements) {
+        if (stmt) walkStmt(*stmt, noopS2, pushFn);
+    }
+
+    // ------------------------------------------------------------------
+    // Two-pass split: separate declarations from executable statements.
+    // ------------------------------------------------------------------
+    // Top-level `let` / `const` are hoisted into a 'globals' bucket emitted
+    // before the function decls so that nested functions (which become real
+    // C++ free functions) can reference them.
     std::vector<const Statement*> decls;
+    std::vector<const Statement*> globals;
     std::vector<const Statement*> exec;
     bool hasMain = false;
+    bool hasTick = false;
+    int  tickArity = 1;
 
     for (auto& stmt : program.statements) {
         if (stmt->kind == NodeKind::FunctionDecl) {
             auto* fd = static_cast<const FunctionDeclStmt*>(stmt.get());
             if (fd->name == "main") hasMain = true;
+            if (fd->name == "tick") { hasTick = true; tickArity = (int)fd->params.size(); }
             decls.push_back(stmt.get());
         } else if (stmt->kind == NodeKind::ClassDecl || stmt->kind == NodeKind::TypeDecl ||
                    stmt->kind == NodeKind::EnumDecl || stmt->kind == NodeKind::ImportDecl ||
                    stmt->kind == NodeKind::ExportDecl || stmt->kind == NodeKind::CppInclude ||
                    stmt->kind == NodeKind::CppBlock) {
             decls.push_back(stmt.get());
+        } else if (stmt->kind == NodeKind::VariableDecl) {
+            globals.push_back(stmt.get());
         } else {
             exec.push_back(stmt.get());
         }
@@ -50,6 +293,56 @@ std::string CodeGenerator::generate(const ProgramNode& program) {
     emitter_.emitLine("    ((std::cout << (__first ? \"\" : \" \") << args, __first = false), ...);");
     emitter_.emitLine("    std::cout << std::endl;");
     emitter_.emitLine("}");
+    emitter_.emitLine();
+
+    // ZeroEngine graphics builtins. Each builtin prints one line of the
+    // ZeroEngine visual protocol to stdout so the playground can replay
+    // the program's draw calls on its canvas. Lines starting with '@' are
+    // engine ops; anything else is regular user print() output.
+    //
+    //   @C r g b                 clear(r,g,b)
+    //   @R x y w h r g b         drawRect
+    //   @O x y rad r g b         drawCircle
+    //   @L x1 y1 x2 y2 r g b     drawLine
+    //   @S rx ry                 setRotation (3D)
+    //   @Z s                     setScale (3D)
+    //   @K r g b a               setFaceColor (3D)
+    //   @F <n>                   start of frame n
+    //   @E                       end of animation
+    emitter_.addInclude("<random>");
+    emitter_.emitLine("// ---- ZeroEngine visual-protocol stubs ----");
+    emitter_.emitLine("[[maybe_unused]] static void __jspp_clear(int r=0,int g=0,int b=0) {");
+    emitter_.emitLine("    std::cout << \"@C \" << r << ' ' << g << ' ' << b << '\\n';");
+    emitter_.emitLine("}");
+    emitter_.emitLine("[[maybe_unused]] static void __jspp_drawRect(double x,double y,double w,double h,int r=255,int g=255,int b=255) {");
+    emitter_.emitLine("    std::cout << \"@R \" << x << ' ' << y << ' ' << w << ' ' << h << ' ' << r << ' ' << g << ' ' << b << '\\n';");
+    emitter_.emitLine("}");
+    emitter_.emitLine("[[maybe_unused]] static void __jspp_drawCircle(double x,double y,double rad,int r=255,int g=255,int b=255) {");
+    emitter_.emitLine("    std::cout << \"@O \" << x << ' ' << y << ' ' << rad << ' ' << r << ' ' << g << ' ' << b << '\\n';");
+    emitter_.emitLine("}");
+    emitter_.emitLine("[[maybe_unused]] static void __jspp_drawLine(double x1,double y1,double x2,double y2,int r=255,int g=255,int b=255) {");
+    emitter_.emitLine("    std::cout << \"@L \" << x1 << ' ' << y1 << ' ' << x2 << ' ' << y2 << ' ' << r << ' ' << g << ' ' << b << '\\n';");
+    emitter_.emitLine("}");
+    emitter_.emitLine("[[maybe_unused]] static void __jspp_setRotation(double rx,double ry) {");
+    emitter_.emitLine("    std::cout << \"@S \" << rx << ' ' << ry << '\\n';");
+    emitter_.emitLine("}");
+    emitter_.emitLine("[[maybe_unused]] static void __jspp_setScale(double s) {");
+    emitter_.emitLine("    std::cout << \"@Z \" << s << '\\n';");
+    emitter_.emitLine("}");
+    emitter_.emitLine("[[maybe_unused]] static void __jspp_setFaceColor(int idx,int r,int g,int b) {");
+    emitter_.emitLine("    std::cout << \"@K \" << idx << ' ' << r << ' ' << g << ' ' << b << '\\n';");
+    emitter_.emitLine("}");
+    emitter_.emitLine("[[maybe_unused]] static double __jspp_rand() { static thread_local std::mt19937_64 __r{std::random_device{}()}; static thread_local std::uniform_real_distribution<double> __d(0.0,1.0); return __d(__r); }");
+    emitter_.emitLine("[[maybe_unused]] static int __jspp_randInt(int lo,int hi) { static thread_local std::mt19937_64 __r{std::random_device{}()}; std::uniform_int_distribution<int> __d(lo,hi); return __d(__r); }");
+    emitter_.emitLine("#define clear        __jspp_clear");
+    emitter_.emitLine("#define drawRect     __jspp_drawRect");
+    emitter_.emitLine("#define drawCircle   __jspp_drawCircle");
+    emitter_.emitLine("#define drawLine     __jspp_drawLine");
+    emitter_.emitLine("#define setRotation  __jspp_setRotation");
+    emitter_.emitLine("#define setScale     __jspp_setScale");
+    emitter_.emitLine("#define setFaceColor __jspp_setFaceColor");
+    emitter_.emitLine("#define rand         __jspp_rand");
+    emitter_.emitLine("#define randInt      __jspp_randInt");
     emitter_.emitLine();
 
     // Emit __jspp_set helper for dynamic array assignment
@@ -69,17 +362,43 @@ std::string CodeGenerator::generate(const ProgramNode& program) {
     emitter_.emitLine("std::string __jspp_concat(const A& a, const B& b) { return __jspp_to_str(a) + __jspp_to_str(b); }");
     emitter_.emitLine();
 
+    // Emit hoisted top-level variables as C++ globals BEFORE function decls
+    // so that functions that reference them compile cleanly.
+    for (auto* g : globals) {
+        emitStatement(*g);
+    }
+
     // Emit declarations
     for (auto* d : decls) {
         emitStatement(*d);
     }
 
-    // Wrap executable statements in main() if needed
-    if (!exec.empty() && !hasMain) {
+    // Wrap executable statements in main() if needed.
+    // If the user defined `tick(...)` and no explicit main, synthesize a
+    // frame-loop main that runs any top-level exec statements first (their
+    // init work), then calls tick() for a bounded number of frames and
+    // emits frame-boundary markers so the playground can replay on canvas.
+    if (!hasMain && (hasTick || !exec.empty())) {
         emitter_.emitLine("int main() {");
         emitter_.indent();
+        emitter_.emitIndentedLine("std::cout.setf(std::ios::fixed); std::cout.precision(3);");
         for (auto* s : exec) {
             emitStatement(*s);
+        }
+        if (hasTick) {
+            emitter_.emitIndentedLine("const int __JSPP_FRAMES = 240;");
+            emitter_.emitIndentedLine("const double __JSPP_DT = 1.0 / 60.0;");
+            emitter_.emitIndentedLine("for (int __f = 0; __f < __JSPP_FRAMES; ++__f) {");
+            emitter_.indent();
+            emitter_.emitIndentedLine("std::cout << \"@F \" << __f << '\\n';");
+            if (tickArity >= 1) {
+                emitter_.emitIndentedLine("tick(__f * __JSPP_DT);");
+            } else {
+                emitter_.emitIndentedLine("tick();");
+            }
+            emitter_.dedent();
+            emitter_.emitIndentedLine("}");
+            emitter_.emitIndentedLine("std::cout << \"@E\\n\";");
         }
         emitter_.emitIndentedLine("return 0;");
         emitter_.dedent();
@@ -164,33 +483,39 @@ void CodeGenerator::emitVariableDecl(const VariableDeclStmt& decl) {
     std::string prefix = decl.isConst ? "const " : "";
 
     if (decl.initializer) {
-        if (cppType.empty()) {
-            // Infer type from initializer
-            cppType = "auto";
-            // Try to get a more specific type for arrays
-            if (decl.initializer->kind == NodeKind::ArrayLiteral) {
-                auto& arr = static_cast<const ArrayLiteralExpr&>(*decl.initializer);
-                if (!arr.elements.empty()) {
-                    std::string inner = "auto";
-                    if (arr.elements[0]->kind == NodeKind::IntLiteral) inner = "int";
-                    else if (arr.elements[0]->kind == NodeKind::FloatLiteral) inner = "double";
-                    else if (arr.elements[0]->kind == NodeKind::StringLiteral) inner = "std::string";
-                    else if (arr.elements[0]->kind == NodeKind::BoolLiteral) inner = "bool";
-                    cppType = "std::vector<" + inner + ">";
-                    emitter_.addInclude("<vector>");
-                } else {
-                    cppType = "std::vector<int>";
-                    emitter_.addInclude("<vector>");
-                }
-            } else if (decl.initializer->kind == NodeKind::StringLiteral) {
-                cppType = "std::string";
-            } else if (decl.initializer->kind == NodeKind::IntLiteral) {
-                cppType = "int";
-            } else if (decl.initializer->kind == NodeKind::FloatLiteral) {
-                cppType = "double";
-            } else if (decl.initializer->kind == NodeKind::BoolLiteral) {
-                cppType = "bool";
+        // If this is an empty array literal and the pre-pass found a later
+        // push of an object literal, use the inferred struct element type.
+        if (cppType.empty() &&
+            decl.initializer->kind == NodeKind::ArrayLiteral &&
+            static_cast<const ArrayLiteralExpr&>(*decl.initializer).elements.empty()) {
+            auto it = inferredArrayStructs_.find(decl.name);
+            if (it != inferredArrayStructs_.end()) {
+                emitter_.addInclude("<vector>");
+                cppType = "std::vector<" + it->second.structName + ">";
+                emitter_.emitIndentedLine(prefix + cppType + " " + decl.name + ";");
+                return;
             }
+        }
+        if (cppType.empty()) {
+            // Recursively infer inner type for array literals so nested arrays
+            // become std::vector<std::vector<int>> and not std::vector<auto>.
+            std::function<std::string(const Expression&)> infer = [&](const Expression& x) -> std::string {
+                switch (x.kind) {
+                    case NodeKind::IntLiteral:    return "int";
+                    case NodeKind::FloatLiteral:  return "double";
+                    case NodeKind::StringLiteral: emitter_.addInclude("<string>"); return "std::string";
+                    case NodeKind::BoolLiteral:   return "bool";
+                    case NodeKind::ArrayLiteral: {
+                        auto& a = static_cast<const ArrayLiteralExpr&>(x);
+                        emitter_.addInclude("<vector>");
+                        if (a.elements.empty()) return "std::vector<int>";
+                        return "std::vector<" + infer(*a.elements[0]) + ">";
+                    }
+                    default: return "";
+                }
+            };
+            std::string inferred = infer(*decl.initializer);
+            cppType = inferred.empty() ? "auto" : inferred;
         }
         emitter_.emitIndentedLine(prefix + cppType + " " + decl.name + " = " +
                                   emitExpression(*decl.initializer) + ";");
@@ -733,6 +1058,28 @@ std::string CodeGenerator::emitCallExpr(const CallExpr& expr) {
         auto obj = emitExpression(*me.object);
         if (me.member == "push") {
             emitter_.addInclude("<vector>");
+            // If pushing an object literal into a var with an inferred
+            // element struct type, emit it as StructName{field,field,...}
+            // in the struct's canonical field order.
+            if (me.object->kind == NodeKind::Identifier && !expr.args.empty() &&
+                expr.args[0] && expr.args[0]->kind == NodeKind::ObjectLiteral) {
+                auto& id = static_cast<const IdentifierExpr&>(*me.object);
+                auto itS = inferredArrayStructs_.find(id.name);
+                if (itS != inferredArrayStructs_.end()) {
+                    auto& obl = static_cast<const ObjectLiteralExpr&>(*expr.args[0]);
+                    std::string parts;
+                    for (size_t i = 0; i < itS->second.fields.size(); i++) {
+                        if (i > 0) parts += ", ";
+                        const auto& fname = itS->second.fields[i].first;
+                        const Expression* found = nullptr;
+                        for (auto& fld : obl.fields) {
+                            if (fld.name == fname) { found = fld.value.get(); break; }
+                        }
+                        parts += found ? emitExpression(*found) : "0";
+                    }
+                    return obj + ".push_back(" + itS->second.structName + "{" + parts + "})";
+                }
+            }
             std::string args;
             for (size_t i = 0; i < expr.args.size(); i++) {
                 if (i > 0) args += ", ";
@@ -776,13 +1123,43 @@ std::string CodeGenerator::emitMemberExpr(const MemberExpr& expr) {
     if (expr.object->kind == NodeKind::Identifier &&
         static_cast<const IdentifierExpr&>(*expr.object).name == "Math") {
         emitter_.addInclude("<cmath>");
+        // Transcendental / trig
+        if (expr.member == "sin")   return "std::sin";
+        if (expr.member == "cos")   return "std::cos";
+        if (expr.member == "tan")   return "std::tan";
+        if (expr.member == "asin")  return "std::asin";
+        if (expr.member == "acos")  return "std::acos";
+        if (expr.member == "atan")  return "std::atan";
+        if (expr.member == "atan2") return "std::atan2";
+        if (expr.member == "sinh")  return "std::sinh";
+        if (expr.member == "cosh")  return "std::cosh";
+        if (expr.member == "tanh")  return "std::tanh";
+        if (expr.member == "exp")   return "std::exp";
+        if (expr.member == "log")   return "std::log";
+        if (expr.member == "log2")  return "std::log2";
+        if (expr.member == "log10") return "std::log10";
+        if (expr.member == "pow")   return "std::pow";
         if (expr.member == "sqrt")  return "std::sqrt";
+        if (expr.member == "cbrt")  return "std::cbrt";
         if (expr.member == "abs")   return "std::abs";
         if (expr.member == "floor") return "std::floor";
         if (expr.member == "ceil")  return "std::ceil";
+        if (expr.member == "round") return "std::round";
+        if (expr.member == "trunc") return "std::trunc";
+        if (expr.member == "sign")  return "((double(*)(double)) [](double x){ return (x>0)-(x<0); })";
         if (expr.member == "max")   return "std::max";
         if (expr.member == "min")   return "std::min";
-        if (expr.member == "PI")    return "M_PI";
+        // Constants (use literals: M_PI / M_E are POSIX, not standard C++).
+        if (expr.member == "PI")    return "3.14159265358979323846";
+        if (expr.member == "E")     return "2.71828182845904523536";
+        if (expr.member == "LN2")   return "0.69314718055994530942";
+        if (expr.member == "LN10")  return "2.30258509299404568402";
+        if (expr.member == "SQRT2") return "1.41421356237309504880";
+        // Pseudo: Math.random() → a tiny inline RNG.
+        if (expr.member == "random") {
+            emitter_.addInclude("<random>");
+            return "([](){ static thread_local std::mt19937_64 __r{std::random_device{}()}; static thread_local std::uniform_real_distribution<double> __d(0.0,1.0); return __d(__r); })";
+        }
     }
 
     // .length → .size()
@@ -806,15 +1183,26 @@ std::string CodeGenerator::emitArrayLiteral(const ArrayLiteralExpr& expr) {
     emitter_.addInclude("<vector>");
     if (expr.elements.empty()) return "std::vector<int>{}";
 
-    // Infer inner type from first element
-    std::string innerType = "auto";
-    if (expr.elements[0]->kind == NodeKind::IntLiteral) innerType = "int";
-    else if (expr.elements[0]->kind == NodeKind::FloatLiteral) innerType = "double";
-    else if (expr.elements[0]->kind == NodeKind::StringLiteral) {
-        innerType = "std::string";
-        emitter_.addInclude("<string>");
-    }
-    else if (expr.elements[0]->kind == NodeKind::BoolLiteral) innerType = "bool";
+    // Infer inner type recursively so nested arrays become
+    // std::vector<std::vector<int>> instead of std::vector<auto>.
+    auto inferInner = [&](const Expression& e) -> std::string {
+        std::function<std::string(const Expression&)> rec = [&](const Expression& x) -> std::string {
+            switch (x.kind) {
+                case NodeKind::IntLiteral:    return "int";
+                case NodeKind::FloatLiteral:  return "double";
+                case NodeKind::StringLiteral: emitter_.addInclude("<string>"); return "std::string";
+                case NodeKind::BoolLiteral:   return "bool";
+                case NodeKind::ArrayLiteral: {
+                    auto& a = static_cast<const ArrayLiteralExpr&>(x);
+                    if (a.elements.empty()) return "std::vector<int>";
+                    return "std::vector<" + rec(*a.elements[0]) + ">";
+                }
+                default: return "auto";
+            }
+        };
+        return rec(e);
+    };
+    std::string innerType = inferInner(*expr.elements[0]);
 
     std::string els;
     for (size_t i = 0; i < expr.elements.size(); i++) {
@@ -827,19 +1215,19 @@ std::string CodeGenerator::emitArrayLiteral(const ArrayLiteralExpr& expr) {
 std::string CodeGenerator::emitObjectLiteral(const ObjectLiteralExpr& expr) {
     std::string name = generateAnonStructName();
 
-    // Build struct definition (will be emitted before main)
-    // For now embed as a lambda-constructed struct
+    // Emit the struct definition into the prelude so it lives at file scope
+    // above any use. Each object literal becomes its own anonymous struct type.
     std::string structDef = "struct " + name + " {\n";
     for (auto& f : expr.fields) {
         std::string t = "auto";
         if (f.value->kind == NodeKind::IntLiteral) t = "int";
         else if (f.value->kind == NodeKind::FloatLiteral) t = "double";
-        else if (f.value->kind == NodeKind::StringLiteral) t = "std::string";
+        else if (f.value->kind == NodeKind::StringLiteral) { t = "std::string"; emitter_.addInclude("<string>"); }
         else if (f.value->kind == NodeKind::BoolLiteral) t = "bool";
         structDef += "    " + t + " " + f.name + ";\n";
     }
-    structDef += "}";
-    // Note: In a real implementation we'd hoist this. For now inline.
+    structDef += "};\n";
+    emitter_.addPrelude(structDef);
 
     std::string init = name + "{";
     for (size_t i = 0; i < expr.fields.size(); i++) {
