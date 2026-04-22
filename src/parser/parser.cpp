@@ -956,39 +956,82 @@ ExprPtr Parser::parsePrimary() {
 
     // Parenthesized expression or arrow function
     if (tok.type == TokenType::DL_LPAREN) {
-        // Try arrow function: (...) =>
-        int saved = pos_;
-        try {
-            advance(); // (
-            auto params = parseParamList();
-            expect(TokenType::DL_RPAREN, "Expected ')'");
-
-            TypeNodePtr returnType;
-            if (match(TokenType::OP_COLON)) {
-                returnType = parseTypeExpr();
+        // Look ahead: scan past the matching ')' and see if it is followed
+        // by '=>' (arrow body) or ':TYPE =>' (typed arrow). Only then try
+        // the arrow-parameter parse path. This prevents `Math.sin((x + y))`
+        // and friends from emitting a spurious "Expected ',' between
+        // parameters" diagnostic via the old speculative parse.
+        bool looksLikeArrow = false;
+        {
+            int depth = 0;
+            size_t k = pos_;
+            while (k < tokens_.size()) {
+                auto tt = tokens_[k].type;
+                if (tt == TokenType::DL_LPAREN) depth++;
+                else if (tt == TokenType::DL_RPAREN) {
+                    depth--;
+                    if (depth == 0) { k++; break; }
+                } else if (tt == TokenType::TOK_EOF) break;
+                k++;
             }
-            expect(TokenType::OP_ARROW, "Expected '=>'");
-
-            auto arrow = std::make_unique<ArrowFunctionExpr>(loc);
-            arrow->params = std::move(params);
-            arrow->returnType = std::move(returnType);
-
-            if (check(TokenType::DL_LBRACE)) {
-                auto block = parseBlock();
-                arrow->bodyBlock = std::move(block->statements);
-                arrow->hasBlockBody = true;
-            } else {
-                arrow->bodyExpr = parseExpression();
-                arrow->hasBlockBody = false;
+            // Skip optional return-type annotation ": Type" (possibly nested <>)
+            if (k < tokens_.size() && tokens_[k].type == TokenType::OP_COLON) {
+                k++;
+                int tdepth = 0;
+                while (k < tokens_.size()) {
+                    auto tt = tokens_[k].type;
+                    if (tt == TokenType::OP_LT) tdepth++;
+                    else if (tt == TokenType::OP_GT) { if (tdepth > 0) tdepth--; }
+                    else if (tdepth == 0 && (tt == TokenType::OP_ARROW ||
+                                             tt == TokenType::DL_LBRACE ||
+                                             tt == TokenType::DL_SEMICOLON ||
+                                             tt == TokenType::TOK_EOF)) break;
+                    k++;
+                }
             }
-            return arrow;
-        } catch (...) {
-            pos_ = saved;
-            advance(); // (
-            auto expr = parseExpression();
-            expect(TokenType::DL_RPAREN, "Expected ')'");
-            return expr;
+            if (k < tokens_.size() && tokens_[k].type == TokenType::OP_ARROW) {
+                looksLikeArrow = true;
+            }
         }
+
+        if (looksLikeArrow) {
+            int saved = pos_;
+            size_t savedErrors = errors_.count();
+            try {
+                advance(); // (
+                auto params = parseParamList();
+                expect(TokenType::DL_RPAREN, "Expected ')'");
+
+                TypeNodePtr returnType;
+                if (match(TokenType::OP_COLON)) {
+                    returnType = parseTypeExpr();
+                }
+                expect(TokenType::OP_ARROW, "Expected '=>'");
+
+                auto arrow = std::make_unique<ArrowFunctionExpr>(loc);
+                arrow->params = std::move(params);
+                arrow->returnType = std::move(returnType);
+
+                if (check(TokenType::DL_LBRACE)) {
+                    auto block = parseBlock();
+                    arrow->bodyBlock = std::move(block->statements);
+                    arrow->hasBlockBody = true;
+                } else {
+                    arrow->bodyExpr = parseExpression();
+                    arrow->hasBlockBody = false;
+                }
+                return arrow;
+            } catch (...) {
+                pos_ = saved;
+                errors_.truncate(savedErrors);
+                // fall through to plain parenthesized-expr parse below
+            }
+        }
+
+        advance(); // (
+        auto expr = parseExpression();
+        expect(TokenType::DL_RPAREN, "Expected ')'");
+        return expr;
     }
 
     // Array literal

@@ -186,9 +186,16 @@ std::string CodeGenerator::generate(const ProgramNode& program) {
     };
 
     // Pass 1: record every `let v = []` (empty array literal, no annotation).
+    //   Also record `let name = new ClassName(...)` so a later push(name)
+    //   can resolve to std::vector<ClassName>.
+    std::unordered_map<std::string, std::string> newBoundVars;
     auto collectEmpty = [&](const Statement& s) {
         if (s.kind != NodeKind::VariableDecl) return;
         auto& v = static_cast<const VariableDeclStmt&>(s);
+        if (v.initializer && v.initializer->kind == NodeKind::NewExpr) {
+            auto& ne = static_cast<const NewExprNode&>(*v.initializer);
+            if (!ne.typeName.empty()) newBoundVars[v.name] = ne.typeName;
+        }
         if (v.typeAnnotation) return;
         if (!v.initializer || v.initializer->kind != NodeKind::ArrayLiteral) return;
         auto& arr = static_cast<const ArrayLiteralExpr&>(*v.initializer);
@@ -228,20 +235,46 @@ std::string CodeGenerator::generate(const ProgramNode& program) {
         if (it == emptyArrayVars.end()) return;
         if (inferredArrayStructs_.count(id.name)) return;  // already inferred
         if (c.args.empty() || !c.args[0]) return;
-        if (c.args[0]->kind != NodeKind::ObjectLiteral) return;
-        auto& obj = static_cast<const ObjectLiteralExpr&>(*c.args[0]);
 
-        InferredArrayStruct info;
-        info.structName = generateAnonStructName();
-        std::string def = "struct " + info.structName + " {\n";
-        for (auto& f : obj.fields) {
-            std::string t = inferCppFieldType(*f.value);
-            info.fields.push_back({f.name, t});
-            def += "    " + t + " " + f.name + ";\n";
+        // Case 1: push({...}) — synthesize an anonymous struct from the object literal.
+        if (c.args[0]->kind == NodeKind::ObjectLiteral) {
+            auto& obj = static_cast<const ObjectLiteralExpr&>(*c.args[0]);
+            InferredArrayStruct info;
+            info.structName = generateAnonStructName();
+            std::string def = "struct " + info.structName + " {\n";
+            for (auto& f : obj.fields) {
+                std::string t = inferCppFieldType(*f.value);
+                info.fields.push_back({f.name, t});
+                def += "    " + t + " " + f.name + ";\n";
+            }
+            def += "};\n";
+            emitter_.addPrelude(def);
+            inferredArrayStructs_[id.name] = std::move(info);
+            return;
         }
-        def += "};\n";
-        emitter_.addPrelude(def);
-        inferredArrayStructs_[id.name] = std::move(info);
+
+        // Case 2: push(new ClassName(...)) — use the class as the element type.
+        if (c.args[0]->kind == NodeKind::NewExpr) {
+            auto& ne = static_cast<const NewExprNode&>(*c.args[0]);
+            if (!ne.typeName.empty()) {
+                InferredArrayStruct info;
+                info.structName = ne.typeName;  // user-defined class name
+                inferredArrayStructs_[id.name] = std::move(info);
+                return;
+            }
+        }
+
+        // Case 3: push(name) where `let name = new ClassName(...)` earlier.
+        if (c.args[0]->kind == NodeKind::Identifier) {
+            auto& aid = static_cast<const IdentifierExpr&>(*c.args[0]);
+            auto nbIt = newBoundVars.find(aid.name);
+            if (nbIt != newBoundVars.end()) {
+                InferredArrayStruct info;
+                info.structName = nbIt->second;
+                inferredArrayStructs_[id.name] = std::move(info);
+                return;
+            }
+        }
     };
 
     auto noopS = std::function<void(const Statement&)>([&](const Statement& s){ collectEmpty(s); });
@@ -262,6 +295,7 @@ std::string CodeGenerator::generate(const ProgramNode& program) {
     // before the function decls so that nested functions (which become real
     // C++ free functions) can reference them.
     std::vector<const Statement*> decls;
+    std::vector<const Statement*> typeDecls;   // classes/types/enums emitted BEFORE globals
     std::vector<const Statement*> globals;
     std::vector<const Statement*> exec;
     bool hasMain = false;
@@ -275,7 +309,11 @@ std::string CodeGenerator::generate(const ProgramNode& program) {
             if (fd->name == "tick") { hasTick = true; tickArity = (int)fd->params.size(); }
             decls.push_back(stmt.get());
         } else if (stmt->kind == NodeKind::ClassDecl || stmt->kind == NodeKind::TypeDecl ||
-                   stmt->kind == NodeKind::EnumDecl || stmt->kind == NodeKind::ImportDecl ||
+                   stmt->kind == NodeKind::EnumDecl) {
+            // Emit these BEFORE globals so `let v: MyClass = ...` and
+            // auto-inferred `std::vector<MyClass>` globals see a complete type.
+            typeDecls.push_back(stmt.get());
+        } else if (stmt->kind == NodeKind::ImportDecl ||
                    stmt->kind == NodeKind::ExportDecl || stmt->kind == NodeKind::CppInclude ||
                    stmt->kind == NodeKind::CppBlock) {
             decls.push_back(stmt.get());
@@ -363,12 +401,17 @@ std::string CodeGenerator::generate(const ProgramNode& program) {
     emitter_.emitLine();
 
     // Emit hoisted top-level variables as C++ globals BEFORE function decls
-    // so that functions that reference them compile cleanly.
+    // so that functions that reference them compile cleanly. Class/type/enum
+    // decls go even earlier, because globals (or inferred vector<Class> type
+    // of a global) may depend on them being complete types.
+    for (auto* d : typeDecls) {
+        emitStatement(*d);
+    }
     for (auto* g : globals) {
         emitStatement(*g);
     }
 
-    // Emit declarations
+    // Emit remaining declarations (functions, imports, cpp blocks)
     for (auto* d : decls) {
         emitStatement(*d);
     }
@@ -1344,6 +1387,7 @@ std::string CodeGenerator::mapPrimitiveType(const std::string& jsppType) {
         {"u64",    "uint64_t"},
         {"float",  "float"},
         {"double", "double"},
+        {"number", "double"},
         {"bool",   "bool"},
         {"char",   "char"},
         {"string", "std::string"},

@@ -67,6 +67,12 @@ public:
 
     void clear() { errors_.clear(); }
 
+    // Speculative parsing support: snapshot current diagnostic count, and
+    // later discard any diagnostics added after that snapshot. Used by the
+    // parser when it backtracks out of a failed arrow-function attempt.
+    size_t count() const { return errors_.size(); }
+    void truncate(size_t n) { if (n < errors_.size()) errors_.resize(n); }
+
 private:
     std::vector<CompileError> errors_;
 
