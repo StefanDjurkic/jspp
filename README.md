@@ -17,7 +17,7 @@ JSPP is a statically-typed language that reads like modern JavaScript and compil
 - A **JavaScript reference interpreter** (`prototype/jspp.mjs`) that runs `.jspp` files directly under Node — used for fast iteration, the stdlib, and the test suite.
 - A native **REPL window** (`jspp-ship`) built on top of [sokol](https://github.com/floooh/sokol).
 - A **regression test suite** covering variables, functions, control flow, arrays, objects, closures, classes, switch/enums, arrow functions, `for…of`, try/catch, imports, and a broad JavaScript-style standard library (Math, JSON, Array/String methods, Date, RegExp, lodash-style helpers, EventEmitter, uuid, path, date-fns, query-string, ms, invariant/warning/assert, etc.).
-- **Integration with [ZeroEngine Desktop](https://github.com/StefanDjurkic/zeroengine)**: a Tauri shell that combines the playground, a sample-app gallery (bouncy balls, pendulum, particle field, 3D cube, …), and a local compile-and-run bridge. Inside the playground a **Benchmark** button runs your current program both through the JS reference interpreter and as compiled native C++ and shows the per-frame speedup.
+- **Integration with [ZeroEngine Desktop](https://github.com/StefanDjurkic/zeroengine)**: a Tauri shell that combines the playground, a sample-app gallery (bouncy balls, pendulum, particle field, 3D cube, …), and a local compile-and-run bridge. Inside the playground a **Benchmark** button runs your current program both through the JS reference interpreter and as compiled native C++ and shows the per-frame speedup. See [What the ZeroEngine benchmark is actually measuring](#what-the-zeroengine-benchmark-is-actually-measuring) below before reading too much into the numbers.
 
 ## Example
 
@@ -147,6 +147,39 @@ cmake --build build --target jspp-ship-selftest
 - Zero-GC, stack-preferred codegen.
 - `cpp { ... }` escape hatch to drop raw C++ anywhere.
 - Large JS-style stdlib available in the reference interpreter (see the `tests/` folder for examples).
+
+## What the ZeroEngine benchmark is actually measuring
+
+The **Benchmark** button in the playground runs your program two ways and prints a per-frame cost for each. On workloads with many draw calls (particle field, pendulum, starfield), the native C++ number often looks *slower* than the JS interpreter number. That is not a JSPP bug — it is what the benchmark is physically measuring, and it is worth spelling out because the result is counter-intuitive.
+
+**The two columns do different amounts of work:**
+
+| | JS interpreter column | C++ column |
+|---|---|---|
+| Runs your `tick()` math | ✅ | ✅ |
+| Calls `drawCircle(...)` N×/frame | ✅ (but **stubbed to no-op**) | ✅ (must **serialize the draw command to stdout**) |
+| Writes bytes to a pipe and has the host process read them | ❌ | ✅ (~15 KB/frame for 400 particles) |
+
+The JS side never touches a canvas during the benchmark — the draw builtins are replaced with empty functions so it only measures your program logic. The C++ side actually writes the ZeroEngine visual protocol (`@C`, `@R`, `@O`, `@L`, …) to stdout, because that's how frames get streamed back through the Tauri bridge to be replayed on the canvas. For a 400-particle scene that's ~2800 floating-point numbers formatted per frame, pushed through a Windows pipe, read back by the host.
+
+**What this means in practice:**
+
+- **Pure `tick()` math** in compiled C++ is typically **30–100× faster** than the same code in JSPP's tree-walking interpreter.
+- **End-to-end "tick() + serialize every draw to stdout"** is dominated by I/O on any workload that draws a lot per frame. On pendulum (two draws/frame) and the 3D cube (three per-face color writes) the compute advantage of native code is essentially rounded off by per-frame pipe writes, so native looks similar to or slower than the interpreter.
+- Particle field (400 draws/frame, ~3.5 MB of stdout) is still I/O-bound but has enough compute in `tick()` that you start to see the compiled code pull ahead.
+
+**Optimizations already applied to the generated C++ for this workload:**
+
+- `std::ios::sync_with_stdio(false); std::cout.tie(nullptr);` in the synthesized `main()` so `std::cout` stops sharing a buffer with the C library's `stdout`.
+- Every draw builtin buffers its output into a thread-local `std::string` via `snprintf` instead of going through `operator<<` formatting and per-call locks.
+- The whole frame is flushed with a single `fwrite` at end-of-run instead of per-frame flushes, collapsing hundreds of syscalls into one.
+
+**What the benchmark is *not* a good proxy for:**
+
+- It is **not** a measurement of JSPP-as-a-game-engine-scripting-language. In a real engine binding, `drawCircle(x, y, r)` is a direct call into the renderer — no serialization, no pipe, no parsing. That architecture is several orders of magnitude faster than either column of this benchmark.
+- It is **not** a comparison to hand-written JavaScript in V8. JSPP's reference interpreter is a tree-walker with no JIT; V8 would beat it badly on the same source. The honest claim here is "compiled JSPP ≫ interpreted JSPP for compute."
+
+If you want to feel the native advantage without the I/O asymmetry, run the compile-pipeline demos in [`zeroengine/demos/compiled/`](https://github.com/StefanDjurkic/zeroengine/tree/main/demos/compiled) directly — those are pure-compute programs whose stdout is a one-shot result, not a frame protocol, and the per-iteration cost is whatever the C++ compiler would give you for equivalent handwritten code.
 
 ## Optional: ZeroEngine browser target
 
