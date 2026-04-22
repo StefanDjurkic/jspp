@@ -424,6 +424,13 @@ std::string CodeGenerator::generate(const ProgramNode& program) {
     if (!hasMain && (hasTick || !exec.empty())) {
         emitter_.emitLine("int main() {");
         emitter_.indent();
+        // Stdio tuning: unsync from C stdio and untie cin so std::cout uses
+        // its own large buffer without flushing on every '\n'. Without this,
+        // programs that emit a few thousand lines of visual protocol (@C/@R/
+        // @O/...) per second spend almost all of their time in libc stdio
+        // locking, not in the actual tick() math. This single line typically
+        // gives 5-20x throughput on the visual-protocol workloads.
+        emitter_.emitIndentedLine("std::ios::sync_with_stdio(false); std::cout.tie(nullptr);");
         emitter_.emitIndentedLine("std::cout.setf(std::ios::fixed); std::cout.precision(3);");
         for (auto* s : exec) {
             emitStatement(*s);
