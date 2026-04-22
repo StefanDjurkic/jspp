@@ -3,7 +3,13 @@
 [![CI](https://github.com/StefanDjurkic/jspp/actions/workflows/ci.yml/badge.svg)](https://github.com/StefanDjurkic/jspp/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**🎮 Try it in your browser:** https://stefandjurkic.github.io/zeroengine/ — a live demo that runs JSPP on top of [ZeroEngine](https://github.com/StefanDjurkic/zeroengine) (Rust + WebGPU). Click "Open JSPP Playground" to write and run JSPP code against a live rendering engine.
+**🎮 Try it in your browser:** https://stefandjurkic.github.io/zeroengine/ — the [ZeroEngine](https://github.com/StefanDjurkic/zeroengine) home page, playground, and sample-app gallery, all running JSPP live.
+
+**🖥️ Run it natively:** [Download ZeroEngine Desktop](https://github.com/StefanDjurkic/zeroengine/releases/latest) — ships this compiler next to the app. Hit **Run as compiled C++** in the playground and your JSPP is compiled through `jspp → .cpp → g++/clang++/cl → native .exe` and the binary's stdout is streamed back to the canvas. The desktop app also opens a local HTTP bridge (`127.0.0.1:17849`) so the public website lights up when it's running and can send compile jobs to your machine.
+
+## Why JSPP?
+
+AI writes better JavaScript than C++. There's more JS in every training set, the syntax is more regular, and there are fewer footguns — no manual memory management, no header files, no template metaprogramming. JSPP exploits that gap: give the AI a language it already knows how to write, and let the compiler handle the hard translation to native code. The AI stays in its comfort zone. You still get C++ speed.
 
 JSPP is a statically-typed language that reads like modern JavaScript and compiles to high-performance C++. It ships with:
 
@@ -11,6 +17,7 @@ JSPP is a statically-typed language that reads like modern JavaScript and compil
 - A **JavaScript reference interpreter** (`prototype/jspp.mjs`) that runs `.jspp` files directly under Node — used for fast iteration, the stdlib, and the test suite.
 - A native **REPL window** (`jspp-ship`) built on top of [sokol](https://github.com/floooh/sokol).
 - A **regression test suite** covering variables, functions, control flow, arrays, objects, closures, classes, switch/enums, arrow functions, `for…of`, try/catch, imports, and a broad JavaScript-style standard library (Math, JSON, Array/String methods, Date, RegExp, lodash-style helpers, EventEmitter, uuid, path, date-fns, query-string, ms, invariant/warning/assert, etc.).
+- **Integration with [ZeroEngine Desktop](https://github.com/StefanDjurkic/zeroengine)**: a Tauri shell that combines the playground, a sample-app gallery (bouncy balls, pendulum, particle field, 3D cube, …), and a local compile-and-run bridge. Inside the playground a **Benchmark** button runs your current program both through the JS reference interpreter and as compiled native C++ and shows the per-frame speedup.
 
 ## Example
 
