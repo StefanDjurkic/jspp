@@ -1,0 +1,44 @@
+// Bouncy Balls - a .zeroapp entry point.
+// 24 balls, each with its own velocity and color, bouncing off the
+// walls of a 640x520 canvas. All of this compiles to native C++ in
+// the ZeroEngine desktop shell and replays through the stdout
+// visual protocol.
+
+let N = 24;
+let balls = [];
+for (let i = 0; i < N; i = i + 1) {
+    balls.push({
+        x:  40 + rand() * 560,
+        y:  40 + rand() * 440,
+        vx: -140 + rand() * 280,
+        vy: -140 + rand() * 280,
+        r:  10 + rand() * 14,
+        cr: randInt(120, 255),
+        cg: randInt(120, 255),
+        cb: randInt(120, 255)
+    });
+}
+
+let lastT = 0.0;
+
+function tick(t) {
+    let dt = t - lastT;
+    if (dt < 0.0) { dt = 0.0; }
+    if (dt > 0.1) { dt = 0.1; }
+    lastT = t;
+
+    clear(12, 18, 28);
+
+    for (let i = 0; i < N; i = i + 1) {
+        let b = balls[i];
+        b.x = b.x + b.vx * dt;
+        b.y = b.y + b.vy * dt;
+        if (b.x < b.r)         { b.x = b.r;         b.vx = -b.vx; }
+        if (b.x > 640.0 - b.r) { b.x = 640.0 - b.r; b.vx = -b.vx; }
+        if (b.y < b.r)         { b.y = b.r;         b.vy = -b.vy; }
+        if (b.y > 520.0 - b.r) { b.y = 520.0 - b.r; b.vy = -b.vy; }
+        drawCircle(b.x, b.y, b.r, b.cr, b.cg, b.cb);
+    }
+}
+
+print("bouncy balls armed:", N);

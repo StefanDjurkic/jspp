@@ -1,0 +1,8 @@
+{
+    "name": "Bouncy Balls",
+    "version": "0.1.0",
+    "description": "A swarm of 24 colored balls bouncing inside a 640x520 box.",
+    "author": "ZeroEngine Examples",
+    "entry": "main.jspp",
+    "mode": "2d"
+}
